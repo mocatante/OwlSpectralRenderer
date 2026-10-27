@@ -15,8 +15,10 @@ spectral-ray-tracer（CPU 版）的 GPU 迁移版本，基于 OWL + NVIDIA OptiX
 仅在 Windows + MSVC + VS2022 上验证。/ Tested on Windows + MSVC + VS2022 only.
 
 ## 相对 CPU 版的改动 / Changes from the CPU version
-The following simplifications were made relative to the CPU version. At this stage my understanding of renderer architecture is not deep enough to judge what the optimal implementation would be, so the simplest viable approach is chosen uniformly, with targeted optimization deferred until that understanding improves.
-以下几处相比 CPU 版做了简化。当前对渲染器架构的理解尚不足以判断何为最优实现，因此统一选择最简可行方案，待后续理解加深再做针对性优化。
+The following simplifications were made relative to the CPU version. 
+NEE/MIS, GAS reuse, and sphere primitives are known gaps,
+left as-is until (and unless) the base pipeline needs them.
+以下几处相比 CPU 版做了简化。这一版的目标是验证管线，NEE/MIS 等是已知缺口，待后续理解加深再做针对性优化。
 ### 仅三角面片/Triangles only: 
 All geometry is converted to triangle meshes so that intersection runs through OptiX's triangle pipeline on RT Cores. This is the project's primary goal; custom primitives would bypass the hardware intersection units.
 除自定义图元，全部改为三角网格，使求交走 OptiX 三角形管线并由 RT Core 执行——这是本项目的核心目的。
