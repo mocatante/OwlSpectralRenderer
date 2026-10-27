@@ -11,6 +11,7 @@ spectral-ray-tracer（CPU 版）的 GPU 迁移版本，基于 OWL + NVIDIA OptiX
 - NVIDIA OptiX SDK 9.0.0
 - CUDA Toolkit 13.x
 - CMake ≥ 3.24，MSVC / Visual Studio 2022
+
 仅在 Windows + MSVC + VS2022 上验证。/ Tested on Windows + MSVC + VS2022 only.
 
 ## 相对 CPU 版的改动 / Changes from the CPU version
