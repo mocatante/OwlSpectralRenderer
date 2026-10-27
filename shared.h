@@ -6,29 +6,43 @@
 using namespace owl;
 typedef owl::common::LCG<4> Random;
 
-// 一组三角面片的顶点与索引
 struct TriangleMeshGeometry {
     vec3f* vertices;
     vec3i* indices;
 };
 
-// 漫反射材质的三角面片数据
+// 漫反射材质
 struct DiffuseTriangleData {
     TriangleMeshGeometry mesh;
-    float albedo;
+    vec3f albedo;
 };
 
-// 发光材质的三角面片数据
-struct EmissiveTriangleData {
+// 黑体发光材质
+struct BlackbodyTriangleData {
     TriangleMeshGeometry mesh;
-    float emission;
+    float temperature_K;
+    float intensity;
 };
 
-// 线程PRD
+// 玻璃材质
+struct GlassTriangleData {
+    TriangleMeshGeometry mesh;
+    float ior;
+    float dispersion;
+};
+
+// 金属材质
+struct MetalTriangleData {
+    TriangleMeshGeometry mesh;
+    vec3f albedo;
+    float fuzz;
+};
+
 struct PerRayData {
     Random random;
     float throughput;
-    float emission;
+    float emission;    // 标量辐射度
+    float lambda;      // 波长
     vec3f origin;
     vec3f direction;
     bool isScattered;

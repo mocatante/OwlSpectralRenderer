@@ -4,6 +4,11 @@
 
 using namespace owl;
 
+
+// 加这个类是因为owl的矩阵运算有些转换问题
+// 用自己写的不烧心
+
+
 struct Mat4 {
     float m[12];
 
@@ -31,6 +36,17 @@ struct Mat4 {
         mat.m[8] = s.z;
         return mat;
     }
+
+    static Mat4 rotate_y(float angle_deg) {
+        float rad = angle_deg * 3.14159265358979323846f / 180.0f;
+        float c = cosf(rad);
+        float s = sinf(rad);
+        Mat4 mat = identity();
+        mat.m[0] = c;  mat.m[2] = -s;
+        mat.m[6] = s;  mat.m[8] = c;
+        return mat;
+    }
+
 
     Mat4 operator*(const Mat4& other) const {
         Mat4 res;

@@ -18,8 +18,8 @@ public:
         if (std::abs(dot(lookAt, up)) > 0.999f) {
             up = (std::abs(lookAt.x) < 0.9f) ? vec3f(1, 0, 0) : vec3f(0, 1, 0);
         }
-        vec3f right = normalize(cross(up, lookAt));
-        up = normalize(cross(lookAt, right));
+        vec3f right = normalize(cross(lookAt, up));
+        up = normalize(cross(right, lookAt));
 
         float fov_x_rad = fov_x_deg * M_PI / 180.0f;
         float viewport_width = 2.0f * tanf(fov_x_rad * 0.5f) * focus_distance;
@@ -76,7 +76,8 @@ public:
         owlRayGenSet3f(rayGen, "camera.ustep", (const owl3f&)cam_data.u_step);
         owlRayGenSet3f(rayGen, "camera.vstep", (const owl3f&)cam_data.v_step);
 
-        // 最终构建PGs, 包括材质CH
+        // 逻辑上, 此时场景已构建完毕, 即注册了材质 PGs
+        // 因此, 这是一次最终构建PGs, 把所有 PG 链接成完整的硬件状态机
         owlBuildPrograms(owl);
         // 编译Pipeline, 构建底层状态机
         owlBuildPipeline(owl);
