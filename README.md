@@ -23,11 +23,12 @@ left as-is until (and unless) the base pipeline needs them.
 All geometry is converted to triangle meshes so that intersection runs through OptiX's triangle pipeline on RT Cores. This is the project's primary goal; custom primitives would bypass the hardware intersection units.
 除自定义图元，全部改为三角网格，使求交走 OptiX 三角形管线并由 RT Core 执行——这是本项目的核心目的。
 ### 纯路径追踪 / Pure path tracing:
-Direct light sampling and MIS are removed. NEE and MIS interact with spectral sampling in non-obvious ways, and it is unclear which combination yields the best noise/effort trade-off here. Pure path tracing is unbiased and simple to verify, so it serves as the baseline; light sampling will be revisited once the base pipeline is solid.
+Direct light sampling and MIS are removed. NEE and MIS interact with spectral sampling in non-obvious ways, and it is unclear which combination yields the best noise/effort trade-off here. Pure path tracing is unbiased and simple to verify, so it serves as the baseline. 
 validating the base pipeline first makes those additions far less error-prone later.
-移除直接光采样，未实现 MIS。NEE 与 MIS 和光谱采样的耦合方式并不直观，何种组合在此场景下噪声与实现成本的权衡最优也尚不清楚。
+移除直接光采样，未实现 MIS。NEE 与 MIS 和光谱采样的耦合方式并不直观。
 纯路径追踪无偏且易于验证，先作为基线，待基础管线稳定后再评估是否引入光采样。
 ### 暴力 GAS 构建 / Naive GAS construction:
-One GAS per geometry, with no reuse or instance merging. For the current scene sizes the overhead is negligible, and it is unclear whether BLAS/TLAS separation or instance merging would actually pay off at this scale. The simplest construction is used for now; reuse is left as a potential long-term optimization.
-每个几何体独立建 GAS，未做复用或实例化合并。当前场景规模下构建开销可忽略，而 BLAS/TLAS 拆分或实例合并在这一规模下是否真正划算也尚不清楚。
+One GAS per geometry, with no reuse or instance merging. For the current scene sizes the overhead is negligible. 
+The simplest construction is used for now; reuse is left as a potential long-term optimization.
+每个几何体独立建 GAS，未做复用或实例化合并。当前场景规模下构建开销可忽略。
 先采用最简构建方式，复用留作后续可能的长期优化。
