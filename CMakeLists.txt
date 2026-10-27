@@ -12,13 +12,12 @@ set(OWL_SDK_DIR "D:/OWL_SDK")
 
 add_executable(OwlSpectralRenderer 
     main.cpp 
-    
+    shared.h
     mat4.h
-    materials.h
+    sampling.h
     scene_ball.h
     camera.h
     toBMP.h
-    shared.h
 )
 
 target_include_directories(OwlSpectralRenderer PRIVATE 
@@ -33,6 +32,7 @@ target_link_directories(OwlSpectralRenderer PRIVATE
 )
 target_link_libraries(OwlSpectralRenderer PRIVATE owl.lib cuda.lib cudart.lib)
 
+# 将 shaders.cu 编译为 shaders.ptx
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/shaders.ptx
     COMMAND "C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.3/bin/nvcc.exe" 

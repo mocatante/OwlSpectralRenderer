@@ -1,9 +1,49 @@
 #include <optix_device.h>
 #include "shared.h"
-#include "materials.h"
+#include "sampling.h"
 
 using namespace owl;
 
+// 材质相关的 PGs
+inline __device__ vec3f get_triangle_normal(const TriangleMeshGeometry& mesh, int primID, const vec3f& rayDir) {
+    const vec3i idx = mesh.indices[primID];
+    const vec3f A = mesh.vertices[idx.x];
+    const vec3f B = mesh.vertices[idx.y];
+    const vec3f C = mesh.vertices[idx.z];
+    vec3f N = normalize(cross(B - A, C - A));
+    if (dot(N, rayDir) > 0.0f) N = -N;
+    return N;
+}
+inline __device__ vec3f get_triangle_hitP() {
+    return vec3f(optixGetWorldRayOrigin()) + vec3f(optixGetWorldRayDirection()) * optixGetRayTmax();
+}
+
+// CH, 漫反射
+OPTIX_CLOSEST_HIT_PROGRAM(DiffuseHit)() {
+    const int primID = optixGetPrimitiveIndex();
+    const DiffuseTriangleData& self = owl::getProgramData<DiffuseTriangleData>();
+
+    vec3f dir = vec3f(optixGetWorldRayDirection());
+    vec3f P = get_triangle_hitP();
+    vec3f N = get_triangle_normal(self.mesh, primID, dir);
+
+    PerRayData& prd = owl::getPRD<PerRayData>();
+    prd.emission = 0.0f;
+    prd.isScattered = scatter_diffuse(self.albedo, P, N, prd);
+}
+
+// CH, 纯自发光
+OPTIX_CLOSEST_HIT_PROGRAM(EmissiveHit)() {
+    const EmissiveTriangleData& self = owl::getProgramData<EmissiveTriangleData>();
+
+    PerRayData& prd = owl::getPRD<PerRayData>();
+    prd.emission = self.emission;
+    prd.isScattered = false;
+}
+
+// 相机相关PGs
+// 
+// RG
 OPTIX_RAYGEN_PROGRAM(rayGen)() {
     const RayGenData& self = owl::getProgramData<RayGenData>();
     const vec2i pixelID = owl::getLaunchIndex();
@@ -38,6 +78,7 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
         float path_radiance = 0.0f;
 
         for (int depth = 0; depth < self.max_depth; depth++) {
+            // BVH->SBT->PGs
             owl::traceRay(self.world, ray, prd);
             path_radiance += prd.throughput * prd.emission;
             if (!prd.isScattered) break;
@@ -48,51 +89,13 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
     }
 
     final_radiance /= (float)self.samples_per_pixel;
-
-    // 临时处理: clamp 到 [0, 1] 防止溢出，再复制到 RGB 三个通道
     final_radiance = fminf(fmaxf(final_radiance, 0.0f), 1.0f);
     vec3f rgb_output = vec3f(final_radiance, final_radiance, final_radiance);
-
     self.fbPtr[pixelIdx] = owl::make_rgba(rgb_output);
 }
-
+// MS
 OPTIX_MISS_PROGRAM(miss)() {
     PerRayData& prd = owl::getPRD<PerRayData>();
     prd.isScattered = false;
     prd.emission = 0.0f;
-}
-
-inline __device__ vec3f get_triangle_normal(const TriangleMeshGeometry& mesh, int primID, const vec3f& rayDir) {
-    const vec3i idx = mesh.indices[primID];
-    const vec3f A = mesh.vertices[idx.x];
-    const vec3f B = mesh.vertices[idx.y];
-    const vec3f C = mesh.vertices[idx.z];
-    vec3f N = normalize(cross(B - A, C - A));
-    if (dot(N, rayDir) > 0.0f) N = -N;
-    return N;
-}
-
-inline __device__ vec3f get_triangle_hitP() {
-    return vec3f(optixGetWorldRayOrigin()) + vec3f(optixGetWorldRayDirection()) * optixGetRayTmax();
-}
-
-OPTIX_CLOSEST_HIT_PROGRAM(DiffuseHit)() {
-    const int primID = optixGetPrimitiveIndex();
-    const DiffuseTriangleData& self = owl::getProgramData<DiffuseTriangleData>();
-
-    vec3f dir = vec3f(optixGetWorldRayDirection());
-    vec3f P = get_triangle_hitP();
-    vec3f N = get_triangle_normal(self.mesh, primID, dir);
-
-    PerRayData& prd = owl::getPRD<PerRayData>();
-    prd.emission = 0.0f;
-    prd.isScattered = scatter_diffuse(self.albedo, P, N, prd);
-}
-
-OPTIX_CLOSEST_HIT_PROGRAM(EmissiveHit)() {
-    const EmissiveTriangleData& self = owl::getProgramData<EmissiveTriangleData>();
-
-    PerRayData& prd = owl::getPRD<PerRayData>();
-    prd.emission = self.emission;
-    prd.isScattered = false;
 }

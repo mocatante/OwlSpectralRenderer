@@ -7,6 +7,7 @@
 
 class Camera {
 public:
+    // 相机构造
     Camera(OWLContext owl, OWLModule module,
         vec3f position, vec3f target, vec3f up,
         float focus_distance, float fov_x_deg, float ratio,
@@ -32,7 +33,7 @@ public:
         cam_data.v_step = up * pixel_size;
 
         vec3f view_center = position + lookAt * focus_distance;
-        vec3f viewport_bottom_left = 
+        vec3f viewport_bottom_left =
             view_center - right * (viewport_width * 0.5f) - up * (viewport_height * 0.5f);
 
         cam_data.pixel00_center = viewport_bottom_left
@@ -40,9 +41,11 @@ public:
             + up * (pixel_size * 0.5f);
     }
 
+    // 相机渲染入口
     void render(OWLGroup world, const char* out_file) {
         OWLBuffer frameBuffer = owlHostPinnedBufferCreate(owl, OWL_INT, width * height);
 
+        // RG参数
         OWLVarDecl rayGenVars[] = {
             { "fbPtr",         OWL_BUFPTR, OWL_OFFSETOF(RayGenData, fbPtr)},
             { "fbSize",        OWL_INT2,   OWL_OFFSETOF(RayGenData, fbSize)},
@@ -55,10 +58,12 @@ public:
             { "camera.vstep",  OWL_FLOAT3, OWL_OFFSETOF(RayGenData, camera.v_step)},
             { nullptr }
         };
+        // 绑定RG
         OWLRayGen rayGen = owlRayGenCreate(owl, module, "rayGen", sizeof(RayGenData), rayGenVars, -1);
-
+        // 绑定MS
         OWLVarDecl missVars[] = { { nullptr } };
         OWLMissProg miss = owlMissProgCreate(owl, module, "miss", sizeof(MissProgData), missVars, -1);
+        // MS需要设置槽位
         owlMissProgSet(owl, 0, miss);
 
         owlRayGenSetBuffer(rayGen, "fbPtr", frameBuffer);
@@ -71,10 +76,14 @@ public:
         owlRayGenSet3f(rayGen, "camera.ustep", (const owl3f&)cam_data.u_step);
         owlRayGenSet3f(rayGen, "camera.vstep", (const owl3f&)cam_data.v_step);
 
+        // 最终构建PGs, 包括材质CH
         owlBuildPrograms(owl);
+        // 编译Pipeline, 构建底层状态机
         owlBuildPipeline(owl);
+        // 最终提交SBT
         owlBuildSBT(owl);
 
+        // 入口, owlRayGenLaunch2D->RG
         owlRayGenLaunch2D(rayGen, width, height);
 
         const uint32_t* fb = (const uint32_t*)owlBufferGetPointer(frameBuffer, 0);
