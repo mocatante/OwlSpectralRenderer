@@ -140,7 +140,7 @@ inline void render_cornell_box() {
         1.0f, 40.0f, 1.0f, 600, 512, 10
     );
 
-    cam.render(sceneTAS, "scene_cornell_box.bmp");
+    cam.render(sceneTAS, nullptr, 0, 0.0f, "scene_cornell_box.bmp");
 
     owlModuleRelease(module);
     owlContextDestroy(owl);

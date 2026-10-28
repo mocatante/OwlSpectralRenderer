@@ -164,7 +164,7 @@ inline void render_refraction_rich() {
         1260, 1024, 20
     );
 
-    cam.render(sceneTAS, "scene_refraction_rich.bmp");
+    cam.render(sceneTAS, nullptr, 0, 0.0f, "scene_refraction_rich.bmp");
 
     owlModuleRelease(module);
     owlContextDestroy(owl);

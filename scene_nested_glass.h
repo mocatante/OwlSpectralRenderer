@@ -203,6 +203,19 @@ inline void render_nested_glass() {
     // 断言：所有槽位都应该被填满
     std::cout << "[nested_glass] TAS instances: " << idx << " / " << actualTotal << "\n";
 
+    // 直接采样目标
+    std::vector<DirectTargetData> targets_data = {
+        { center, 0.3f, 2.0f },     // 内层玻璃球
+        { center, 0.4f, 1.0f },     // 外层玻璃球
+    };
+    float target_total_weight = 3.0f;
+    OWLBuffer targetBuffer = owlDeviceBufferCreate(
+        owl,
+        OWL_USER_TYPE(DirectTargetData),
+        targets_data.size(),
+        targets_data.data());
+
+
     // 7. 相机与渲染
     vec3f cam_pos(0.0f, 2.5f, 5.0f);
     vec3f cam_tgt(0.0f, 1.5f, 0.0f);
@@ -215,7 +228,10 @@ inline void render_nested_glass() {
         55.0f, 1.0f, 1024, 1024, 10
     );
 
-    cam.render(sceneTAS, "scene_nested_glass.bmp");
+    cam.render(sceneTAS, targetBuffer, 
+        (int)targets_data.size(),
+        target_total_weight, 
+        "scene_nested_glass.bmp");
 
     owlModuleRelease(module);
     owlContextDestroy(owl);

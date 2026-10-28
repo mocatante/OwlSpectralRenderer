@@ -38,6 +38,15 @@ struct MetalTriangleData {
     float fuzz;
 };
 
+// 直接采样目标描述
+// 包围球 + 采样权重
+// 与场景实体解耦, 可以指向真实玻璃球, 也可以是纯虚拟引导
+struct DirectTargetData {
+    vec3f center;
+    float radius;
+    float weight;
+};
+
 struct PerRayData {
     Random random;
     float throughput;
@@ -46,6 +55,11 @@ struct PerRayData {
     vec3f origin;
     vec3f direction;
     bool isScattered;
+
+    // 直接采样目标（设备端指针，由 RayGenData 透传）
+    DirectTargetData* targets;
+    int   target_count;
+    float target_total_weight;
 };
 
 struct RayGenData {
@@ -60,6 +74,11 @@ struct RayGenData {
         vec3f u_step;
         vec3f v_step;
     } camera;
+
+    // 直接采样目标列表（OWL_RAW_POINTER）
+    DirectTargetData* targets;
+    int   target_count;
+    float target_total_weight;
 };
 
 struct MissProgData {};
