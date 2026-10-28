@@ -63,7 +63,7 @@ inline __device__ float cauchy_dispersion(float ior, float dispersion, float lam
 
 /*=============================================================================================*/
 
-// CH1: RGB 漫反射
+// CH1: RGB 漫反射(带直接采样+混合PDF)
 OPTIX_CLOSEST_HIT_PROGRAM(DiffuseHit)() {
     const int primID = optixGetPrimitiveIndex();
     const DiffuseTriangleData& self = owl::getProgramData<DiffuseTriangleData>();
@@ -78,7 +78,71 @@ OPTIX_CLOSEST_HIT_PROGRAM(DiffuseHit)() {
     float refl = Spectral::rgbToReflectanceAtWavelength(self.albedo, prd.lambda);
 
     prd.emission = 0.0f;
-    prd.isScattered = scatter_diffuse(refl, P, N, prd); // 标量散射
+
+    // 混合 PDF: 材质余弦采样 + 直接采样目标
+    bool has_targets = (prd.target_count > 0) && (prd.target_total_weight > 0.0f);
+
+    // 0.5 概率抽 target 方向, 0.5 概率走材质采样
+    bool use_target = has_targets && (prd.random() < 0.5f);
+
+    vec3f new_dir;
+    if (use_target) {
+        // 按权重轮盘选一个 target
+        float r = prd.random() * prd.target_total_weight;
+        int picked = 0;
+        for (int i = 0; i < prd.target_count; ++i) {
+            r -= prd.targets[i].weight;
+            if (r <= 0.0f) { picked = i; break; }
+        }
+        new_dir = sample_bounding_sphere(
+            prd.targets[picked].center, prd.targets[picked].radius, P, prd.random);
+    }
+    else {
+        // 余弦加权半球采样
+        float r1 = prd.random();
+        float r2 = prd.random();
+        float z = sqrtf(1.0f - r1);
+        float phi = 2.0f * 3.14159265f * r2;
+        float x = sqrtf(r1) * cosf(phi);
+        float y = sqrtf(r1) * sinf(phi);
+
+        vec3f fallback = (fabsf(N.x) > 0.9f) ? vec3f(0, 1, 0) : vec3f(1, 0, 0);
+        vec3f u_raw = cross(fallback, N);
+        float u_len2 = dot(u_raw, u_raw);
+        if (u_len2 < 1e-20f) { prd.isScattered = false; return; }
+        vec3f u = u_raw * rsqrtf(u_len2);
+        vec3f v = cross(N, u);
+        new_dir = u * x + v * y + N * z;
+    }
+
+    // 归一化方向
+    float nd_len2 = dot(new_dir, new_dir);
+    if (nd_len2 < 1e-20f) { prd.isScattered = false; return; }
+    new_dir = new_dir * rsqrtf(nd_len2);
+
+    // 必须在上半球
+    float cosT = dot(new_dir, N);
+    if (cosT <= 0.0f) { prd.isScattered = false; return; }
+
+    // 混合 pdf = 0.5 * p_mat + 0.5 * p_target
+    float p_mat = cosT / MY_PI; // cosine-weighted 的立体角 pdf
+    float p_target = 0.0f;
+    if (has_targets) {
+        for (int i = 0; i < prd.target_count; ++i) {
+            float w_i = prd.targets[i].weight / prd.target_total_weight;
+            p_target += w_i * pdf_bounding_sphere(
+                prd.targets[i].center, prd.targets[i].radius, P, new_dir);
+        }
+    }
+    float p_mix = has_targets ? 0.5f * (p_mat + p_target) : p_mat;
+    if (p_mix <= 1e-8f) { prd.isScattered = false; return; }
+
+    // 蒙特卡洛估计: BRDF * cos / p_mix，其中 BRDF = refl / π
+    prd.throughput *= refl * (cosT / MY_PI) / p_mix;
+
+    prd.direction = new_dir;
+    prd.origin = P;
+    prd.isScattered = true;
 }
 
 // CH2: 黑体光源 / 平谱光源
@@ -202,6 +266,12 @@ OPTIX_RAYGEN_PROGRAM(rayGen)() {
         prd.throughput = 1.0f;
         prd.emission = 0.0f;
         prd.random.init(pixelID.x * 1973 + s, pixelID.y * 9277 + s);
+
+        // 直接采样目标透传
+        prd.targets = self.targets;
+        prd.target_count = self.target_count;
+        prd.target_total_weight = self.target_total_weight;
+
 
         // 随机波长
         int channelIndex = min((int)(prd.random() * SPECTRAL_CHANNEL_COUNT), SPECTRAL_CHANNEL_COUNT - 1);

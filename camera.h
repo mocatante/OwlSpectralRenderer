@@ -41,8 +41,11 @@ public:
             + up * (pixel_size * 0.5f);
     }
 
-    // 相机渲染入口
-    void render(OWLGroup world, const char* out_file) {
+    void render(OWLGroup world,
+        OWLBuffer targetBuffer,
+        int   targetCount,
+        float targetTotalWeight,
+        const char* out_file) {
         OWLBuffer frameBuffer = owlHostPinnedBufferCreate(owl, OWL_INT, width * height);
 
         // RG参数
@@ -56,6 +59,10 @@ public:
             { "camera.p00",    OWL_FLOAT3, OWL_OFFSETOF(RayGenData, camera.pixel00_center)},
             { "camera.ustep",  OWL_FLOAT3, OWL_OFFSETOF(RayGenData, camera.u_step)},
             { "camera.vstep",  OWL_FLOAT3, OWL_OFFSETOF(RayGenData, camera.v_step)},
+            // 直接采样目标, raw pointer 透传
+            { "targets",           OWL_RAW_POINTER, OWL_OFFSETOF(RayGenData, targets)},
+            { "targetCount",       OWL_INT,         OWL_OFFSETOF(RayGenData, target_count)},
+            { "targetTotalWeight", OWL_FLOAT,       OWL_OFFSETOF(RayGenData, target_total_weight)},
             { nullptr }
         };
         // 绑定RG
@@ -75,6 +82,12 @@ public:
         owlRayGenSet3f(rayGen, "camera.p00", (const owl3f&)cam_data.pixel00_center);
         owlRayGenSet3f(rayGen, "camera.ustep", (const owl3f&)cam_data.u_step);
         owlRayGenSet3f(rayGen, "camera.vstep", (const owl3f&)cam_data.v_step);
+
+        // 直接采样目标, 允许传 nullptr
+        owlRayGenSetPointer(rayGen, "targets",
+            targetBuffer ? owlBufferGetPointer(targetBuffer, 0) : nullptr);
+        owlRayGenSet1i(rayGen, "targetCount", targetCount);
+        owlRayGenSet1f(rayGen, "targetTotalWeight", targetTotalWeight);
 
         // 逻辑上, 此时场景已构建完毕, 即注册了材质 PGs
         // 因此, 这是一次最终构建PGs, 把所有 PG 链接成完整的硬件状态机
