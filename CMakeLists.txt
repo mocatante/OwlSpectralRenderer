@@ -53,6 +53,7 @@ add_executable(OwlSpectralRenderer
     scene_nested_glass.h
     scene_cornell_box.h
     scene_refraction_rich.h
+    scene_obj.h
 )
 
 target_include_directories(OwlSpectralRenderer PRIVATE
